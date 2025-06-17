@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link href="../static/css/output.css" rel="stylesheet">
+        <link href="{{ url_for('static', filename='css/output.css') }}" rel="stylesheet">
     </head>
     <body class="w-full">
         <section class=" flex flex-col h-screen">
@@ -11,7 +11,7 @@
                 <div class="grid grid-cols-[1fr_2fr_1fr] items-center py-7">
                     <div class="flex justify-start pl-24">
                         <img
-                            src="../static/img/logo-uns.png"
+                            src="{{ url_for('static', filename='img/logo-uns.png') }}"
                             alt="logo-uns"
                             class="h-14 w-auto"
                         />
@@ -27,18 +27,44 @@
             </header>
 
             <main class="flex-1 bg-biru-muda py-12 flex justify-center items-center">
-                <div class="bg-white border-4 border-biru rounded-4xl w-1/2 h-full flex flex-col gap-1.5 justify-center items-center">
-                    <button class="bg-biru-tua text-white text-xl rounded-full px-10 py-3">Upload Image</button>
-                    <h2 class="text-black text-xl">or</h2>
-                    <h2 class="text-black text-xl">Drag and Drop Here</h2>
+                <div class="bg-white border-4 border-biru rounded-4xl w-1/2 h-full flex flex-col gap-4 justify-center items-center p-8">
+                    <form action="{{ url_for('compress') }}" method="post" enctype="multipart/form-data" class="flex flex-col items-center gap-4 w-full">
+                        <input id="fileInput" type="file" name="image" accept="image/*" class="hidden">
+                        <label for="fileInput" class="cursor-pointer bg-biru-tua text-white text-xl rounded-full px-10 py-3 mb-2">Upload Image</label>
+                        <span class="text-black text-lg" id="fileLabel">Belum ada file</span>
+                        <!-- Preset selector -->
+                        <div class="flex flex-col items-center gap-2 w-40">
+                            <label for="preset" class="text-black text-lg">Level</label>
+                            <select name="preset" id="preset" class="border rounded px-2 py-1 w-full text-center">
+                                <option value="low" selected>Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                        <!-- hidden k field populated by JS -->
+                        <input type="hidden" name="k" id="kHidden" value="100">
+                        <button type="submit" class="bg-biru-tua text-white text-xl rounded-full px-10 py-3 mt-2">Compress</button>
+                        <script>
+                            const presetSel=document.getElementById('preset');
+                            const kHidden=document.getElementById('kHidden');
+                            const mapping={low:100, medium:50, high:30};
+                            presetSel.onchange=()=>{kHidden.value=mapping[presetSel.value];};
+                            // initialize value
+                            kHidden.value=mapping[presetSel.value];
+                            // file label update unchanged
+                            const fileInp=document.getElementById('fileInput');
+                            const fileLbl=document.getElementById('fileLabel');
+                            fileInp.onchange=()=>{fileLbl.textContent=fileInp.files.length?fileInp.files[0].name:'Belum ada file';};
+                        </script>
+                    </form>
                 </div>
                 <img
-                    src="../static/img/batik-kawung-kiri.png"
+                    src="{{ url_for('static', filename='img/batik-kawung-kiri.png') }}"
                     alt="dekorasi-batik"
                     class="absolute bottom-0 left-0 z-0 w-1/4"
                 />
                 <img
-                    src="../static/img/batik-kawung-kanan.png"
+                    src="{{ url_for('static', filename='img/batik-kawung-kanan.png') }}"
                     alt="dekorasi-batik"
                     class="absolute bottom-0 right-0 z-0 w-1/4"
                 />

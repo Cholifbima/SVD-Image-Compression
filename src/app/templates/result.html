@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="{{ url_for('static', filename='css/output.css') }}" rel="stylesheet">
+    <title>Hasil Kompresi</title>
+</head>
+<body class="w-full">
+<section class="flex flex-col min-h-screen">
+    <header class="bg-biru-muda">
+        <div class="grid grid-cols-[1fr_2fr_1fr] items-center py-7">
+            <div class="flex justify-start pl-24">
+                <img src="{{ url_for('static', filename='img/logo-uns.png') }}" alt="logo-uns" class="h-14 w-auto" />
+            </div>
+            <div class="text-center">
+                <h1 class="flex justify-center items-center text-5xl text-biru-tua-banget font-bold">Image Compression</h1>
+            </div>
+            <div></div>
+        </div>
+        <div class="h-1 bg-biru-tua-banget mx-12"></div>
+    </header>
+
+    <main class="flex-1 bg-biru-muda py-12 flex flex-col items-center gap-8">
+        <h2 class="text-3xl font-bold text-biru-tua-banget">Hasil Kompresi</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-11/12 md:w-2/3">
+            <div class="text-center">
+                <h3 class="text-xl font-semibold mb-2">Gambar Asli</h3>
+                <img src="{{ url_for('preview', fname=before_fname) }}" alt="sebelum" class="shadow-lg">
+            </div>
+            <div class="text-center">
+                <h3 class="text-xl font-semibold mb-2">Gambar Terkompresi</h3>
+                <img id="compressedImg" src="{{ url_for('preview', fname=after_fname) }}" alt="sesudah" class="shadow-lg">
+            </div>
+        </div>
+
+        <div class="w-4/5 md:w-1/2 mt-6 flex flex-col items-center gap-2">
+            <label for="kSlider" class="text-lg font-semibold">Sesuaikan nilai k: <span id="kVal">{{ k }}</span></label>
+            <input type="range" id="kSlider" min="1" max="400" value="{{ k }}" class="w-full h-2 rounded-lg accent-blue-600">
+        </div>
+
+        <div id="stats" class="bg-white border-4 border-biru rounded-4xl p-6 w-3/4 md:w-1/2 text-lg leading-relaxed mt-4">
+            <p><strong>Ukuran sebelum:</strong> {{ before_size_kb }} KB</p>
+            <p><strong>Ukuran sesudah:</strong> {{ after_size_kb }} KB</p>
+            <p><strong>Rasio kompresi:</strong> {{ ratio }}</p>
+            <p><strong>Dimensi:</strong> {{ dimension }}</p>
+            <p><strong>Nilai k:</strong> {{ k }}</p>
+            <p><strong>Runtime:</strong> {{ runtime }} detik</p>
+            <p><strong>Level:</strong> {{ preset }}</p>
+        </div>
+
+        <a id="downloadBtn" href="{{ url_for('download', fname=after_fname) }}" class="bg-biru-tua text-white text-xl rounded-full px-10 py-3 mt-4">Download Hasil</a>
+
+        <script>
+            const debounceDelay=400;
+            let timer=null;
+            const slider=document.getElementById('kSlider');
+            const kLabel=document.getElementById('kVal');
+            const img=document.getElementById('compressedImg');
+            const statsDiv=document.getElementById('stats');
+            const dlBtn=document.getElementById('downloadBtn');
+            const origName='{{ before_fname }}';
+            slider.oninput=()=>{
+                kLabel.textContent=slider.value;
+                if(timer) clearTimeout(timer);
+                timer=setTimeout(doRecompress, debounceDelay);
+            };
+            function doRecompress(){
+                const fd=new FormData();
+                fd.append('fname', origName);
+                fd.append('k', slider.value);
+                fetch('{{ url_for('recompress') }}', {method:'POST', body:fd})
+                  .then(r=>r.json()).then(d=>{
+                    if(d.error){console.error(d.error);return;}
+                    img.src=d.url+'?'+Date.now();
+                    statsDiv.innerHTML=`<p><strong>Ukuran sebelum:</strong> ${d.before_kb} KB</p>
+                        <p><strong>Ukuran sesudah:</strong> ${d.after_kb} KB</p>
+                        <p><strong>Rasio kompresi:</strong> ${d.ratio}%</p>
+                        <p><strong>Dimensi:</strong> ${d.dimension}</p>
+                        <p><strong>Nilai k:</strong> ${d.k}</p>
+                        <p><strong>Runtime:</strong> ${d.runtime} detik</p>`;
+                    dlBtn.href=d.url.replace('/preview/','/download/');
+                });
+            }
+        </script>
+    </main>
+</section>
+<footer>
+    <div class="w-full bg-biru-tua text-white text-center py-4">&copy; 2025, Cholif Bima A - Lutfiyah Istiana - Shafa Rifkika NF</div>
+</footer>
+</body>
+</html> 
