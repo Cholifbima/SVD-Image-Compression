@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+@theme {
+    --color-biru: #71D0FC;
+    --color-biru-muda: #C9EEFE;
+    --color-biru-tua: #1146A2;
+    --color-biru-tua-banget: #292D54;
+}
