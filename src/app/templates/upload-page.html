@@ -31,12 +31,25 @@
                 <!-- SATU FORM UNTUK SEMUA DENGAN FLEX-1 -->
                 <form action="{{ url_for('compress') }}" method="post" enctype="multipart/form-data" class="flex flex-col items-center gap-6 w-full flex-1">
                     <!-- KOTAK UPLOAD DENGAN HEIGHT YANG BENAR -->
-                    <div class="bg-white border-4 border-biru rounded-4xl w-1/2 flex-1 flex flex-col gap-4 justify-center items-center p-8 relative z-10">
-                        <input id="fileInput" type="file" name="image" accept="image/*" class="hidden">
-                        <label for="fileInput" class="cursor-pointer bg-biru-tua text-white text-lg rounded-full px-10 py-3 mb-2">Upload Image</label>
-                        <span class="text-black text-lg" id="fileLabel">Belum ada file</span>
+                    <div id="upload-container" class="cursor-pointer bg-white border-4 border-biru rounded-4xl w-1/2 flex-1 flex flex-col gap-4 justify-center items-center relative  overflow-hidden object-contain">
+                        
+                        <label for="input-file" id="drop-area" class="w-full h-full">
+                            <input id="input-file" type="file" name="image" accept="image/*" hidden>
+                            <div id="img-view" class="flex flex-col justify-center items-center bg-center bg-cover h-full w-full">
+                                <div id="element" class="flex flex-col justify-center items-center bg-center bg-cover h-full w-full">
+                                    <!-- Konten awal -->
+                                    <div id="preview-content" class="flex flex-col justify-center items-center">
+                                        <img src="{{ url_for('static', filename='img/icon.png') }}" class="h-16">
+                                        <p class="text-center">Drag and drop or click here<br>to upload image</p>
+                                    </div>
+                                    
+                                    <!-- Gambar yang diupload akan muncul di sini -->
+                                    <img id="uploaded-image" style="display: none;">
+                                </div>
+                            </div>
+                        </label>
                     </div>
-
+                    
                     <!-- LEVEL DAN COMPRESS DI LUAR KOTAK -->
                     <div class="flex flex-shrink-0">
                         <!-- Preset selector -->
@@ -71,22 +84,54 @@
 
         <!-- FOOTER -->
         <footer>
-            <div class="w-full bg-biru-tua text-white text-center py-4">
+            <div class="w-full h-full bg-biru-tua text-white text-center py-4">
                 &copy; 2025, Cholif Bima A - Lutfiyah Istiana - Shafa Rifkika NF
             </div>
         </footer>
 
         <script>
-            const presetSel=document.getElementById('preset');
-            const kHidden=document.getElementById('kHidden');
-            const mapping={low:100, medium:50, high:30};
-            presetSel.onchange=()=>{kHidden.value=mapping[presetSel.value];};
-            // initialize value
-            kHidden.value=mapping[presetSel.value];
-            // file label update unchanged
-            const fileInp=document.getElementById('fileInput');
-            const fileLbl=document.getElementById('fileLabel');
-            fileInp.onchange=()=>{fileLbl.textContent=fileInp.files.length?fileInp.files[0].name:'Belum ada file';};
+            const presetSel = document.getElementById('preset');
+            const kHidden = document.getElementById('kHidden');
+            const inputFile = document.getElementById('input-file');
+            const imgView = document.getElementById('img-view');
+            const previewContent = document.getElementById('preview-content');
+            const uploadedImage = document.getElementById('uploaded-image');
+            // Set nilai awal k
+            const mapping = { low: 100, medium: 50, high: 30 };
+            presetSel.onchange = () => { kHidden.value = mapping[presetSel.value]; };
+            kHidden.value = mapping[presetSel.value];
+            inputFile.addEventListener("change", uploadImage);
+            
+            function uploadImage() {
+                // Cek jika ada file yang dipilih
+                if (inputFile.files && inputFile.files[0]) {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        // Sembunyikan konten preview
+                        previewContent.style.display = 'none';
+                        
+                        // Set source gambar dan tampilkan
+                                uploadedImage.src = e.target.result;
+                        uploadedImage.style.display = 'block';
+                        
+                        // Deteksi orientasi gambar
+                        const img = new Image();
+                        img.onload = function() {
+                            if (img.width > img.height) { // Landscape
+                                uploadedImage.style.width = '100%';
+                                uploadedImage.style.height = 'auto';
+                            } else { // Portrait
+                                uploadedImage.style.height = '100%';
+                                uploadedImage.style.width = 'auto';
+                            }
+                        };
+                        img.src = e.target.result;
+                    }
+                    
+                    reader.readAsDataURL(inputFile.files[0]);
+                }
+            }
         </script>
     </body>
 </html>
