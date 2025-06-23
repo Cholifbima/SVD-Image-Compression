@@ -26,7 +26,7 @@ function uploadImage() {
                     uploadedImage.style.width = '100%';
                     uploadedImage.style.height = 'auto';
                 } else { // Portrait
-                    uploadedImage.style.height = '30%';
+                    uploadedImage.style.height = '100%';
                     uploadedImage.style.width = 'auto';
                 }
             };
