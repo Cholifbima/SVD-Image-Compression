@@ -49,15 +49,40 @@ def compress_image(input_path: str, k: int) -> Tuple[str, float, int, int, int, 
     # Simpan ke direktori temp agar mudah dihapus nanti
     tmpdir = tempfile.gettempdir()
 
-    # Determine output format based on input extension
+    # More predictable quality based on visual information preserved
     ext = os.path.splitext(input_path)[1].lower()
-    save_kwargs = {}
+    max_rank = min(height, width)
+    
+    # Calculate information preservation ratio
+    info_preserved = k / max_rank
+    
+    print(f"DEBUG SVD: k={k}, max_rank={max_rank}, info_preserved={info_preserved:.3f}")
+    
     if ext in ('.jpg', '.jpeg'):
         out_fname = f"svd_{int(time.time())}.jpg"
-        save_kwargs = {'quality': 85, 'optimize': True}
+        
+        # More aggressive quality reduction for low k (since visual info already lost)
+        if info_preserved >= 0.8:      # k > 80% of max rank
+            quality = 92  # High quality for minimal SVD loss
+        elif info_preserved >= 0.5:    # k > 50% of max rank  
+            quality = 85  # Medium-high quality
+        elif info_preserved >= 0.2:    # k > 20% of max rank
+            quality = 75  # Medium quality (SVD already removed detail)
+        elif info_preserved >= 0.1:    # k > 10% of max rank
+            quality = 65  # Low quality (heavy SVD compression)
+        else:                          # k < 10% of max rank
+            quality = 55  # Very low quality (extreme SVD compression)
+            
+        print(f"DEBUG JPEG: quality={quality}")
+        save_kwargs = {'format': 'JPEG', 'quality': quality, 'optimize': True}
+        # Ensure RGB for JPEG
+        if out.mode != 'RGB':
+            out = out.convert('RGB')
     else:
-        out_fname = f"svd_{int(time.time())}.png"
-        save_kwargs = {'optimize': True, 'compress_level': 9}
+        out_fname = f"svd_{int(time.time())}.png" 
+        # For PNG, use compression based on info preservation
+        compress_level = min(9, max(1, int(9 - (info_preserved * 7))))
+        save_kwargs = {'format': 'PNG', 'optimize': True, 'compress_level': compress_level}
 
     out_path = os.path.join(tmpdir, out_fname)
     out.save(out_path, **save_kwargs)

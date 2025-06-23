@@ -97,7 +97,18 @@ def compress():
         dest_path = out_path
 
     ratio = (before_size - after_size) / before_size * 100
-    ratio_str = f"{ratio:.2f}%" if ratio >= 0 else f"+{abs(ratio):.2f}% (lebih besar)"
+    ratio_str = f"{ratio:.2f}%" if ratio >=0 else f"+{abs(ratio):.2f}% (lebih besar)"
+
+    # Calculate mathematical SVD compression metrics
+    total_pixels = height * width
+    uncompressed_matrix_size = total_pixels * 3  # RGB channels
+    compressed_matrix_size = (height * k + k + k * width) * 3  # U + S + Vt per channel
+    svd_compression_ratio = uncompressed_matrix_size / compressed_matrix_size
+
+    print(f"DEBUG Math: h={height}, w={width}, k={k}")
+    print(f"DEBUG Math: uncompressed={uncompressed_matrix_size}, compressed={compressed_matrix_size}")
+    print(f"DEBUG Math: SVD ratio={svd_compression_ratio:.2f}")
+    print(f"DEBUG File: before={before_size}, after={after_size}, ratio={(before_size-after_size)/before_size*100:.2f}%")
 
     cache_entry = {
         "output_filename": after_basename,
@@ -115,7 +126,7 @@ def compress():
     return render_template(
         "result.html",
         before_fname=os.path.basename(in_path),
-        after_fname=after_basename,
+        after_fname=os.path.basename(dest_path),
         runtime=f"{runtime:.3f}",
         ratio=ratio_str,
         dimension=f"{height}×{width}",
@@ -123,6 +134,14 @@ def compress():
         after_size_kb=f"{after_size / 1024:.2f}",
         k=k,
         preset=preset if preset else 'custom',
+        # SVD mathematical metrics
+        total_pixels=total_pixels,
+        uncompressed_matrix_size=uncompressed_matrix_size,
+        compressed_matrix_size=compressed_matrix_size,
+        svd_compression_ratio=f"{svd_compression_ratio:.2f}",
+        height=height,
+        width=width,
+        info_preserved=f"{(k/min(height,width))*100:.1f}",
     )
 
 
@@ -146,9 +165,12 @@ def preview(fname):
 
 @app.route('/recompress', methods=['POST'])
 def recompress():
-    """Ajax endpoint to recompress original image with a new k value (with caching)."""
+    """Ajax endpoint to recompress original image with a new k value."""
     fname = request.form.get('fname')  # original uploaded filename
     k_val = request.form.get('k')
+    
+    print(f"DEBUG: Recompress called with fname={fname}, k={k_val}")  # Debug log
+    
     if not fname or not k_val:
         return jsonify({'error': 'Parameter missing'}), 400
     try:
@@ -160,65 +182,52 @@ def recompress():
     if not os.path.exists(orig_path):
         return jsonify({'error': 'file not found'}), 404
 
-    file_hash = get_file_hash(orig_path)
-    cache_key = f"{file_hash}_{k}"
-    cache_data = load_cache(app.config["CACHE_FILE"])
-    
-    if cache_key in cache_data:
-        cached_result = cache_data[cache_key]
-        cached_file_path = os.path.join(app.config["CACHE_FOLDER"], cached_result["output_filename"])
-        
-        if os.path.exists(cached_file_path):
-            # Copy to upload folder
-            dest_path = os.path.join(app.config["UPLOAD_FOLDER"], cached_result["output_filename"])
-            shutil.copy2(cached_file_path, dest_path)
-            
-            return jsonify({
-                'url': url_for('preview', fname=cached_result["output_filename"]),
-                'k': k,
-                'runtime': f"{cached_result['runtime']:.3f} (cached)",
-                'before_kb': cached_result["before_size_kb"],
-                'after_kb': cached_result["after_size_kb"],
-                'ratio': cached_result["ratio_str"].replace('%', ''),
-                'dimension': cached_result["dimension"]
-            })
-
-    out_path, runtime, before_size, after_size, height, width = compress_image(orig_path, k)
-    
-    dest_basename = os.path.basename(out_path)
-    cache_file_path = os.path.join(app.config["CACHE_FOLDER"], dest_basename)
-    shutil.copy2(out_path, cache_file_path)
-    
-    dest_path = os.path.join(app.config['UPLOAD_FOLDER'], dest_basename)
     try:
-        shutil.move(out_path, dest_path)
-    except Exception:
-        dest_path = out_path
+        # Compress again - FORCE no cache
+        out_path, runtime, before_size, after_size, height, width = compress_image(orig_path, k)
+        
+        print(f"DEBUG: SVD result - before:{before_size}, after:{after_size}, h:{height}, w:{width}")  # Debug log
+        
+        # ensure file reachable via preview route
+        dest_basename = os.path.basename(out_path)
+        dest_path = os.path.join(app.config['UPLOAD_FOLDER'], dest_basename)
+        try:
+            shutil.move(out_path, dest_path)
+        except Exception as e:
+            print(f"DEBUG: Move failed: {e}")
+            dest_path = out_path
 
-    ratio = (before_size - after_size) / before_size * 100
-    
-    cache_entry = {
-        "output_filename": dest_basename,
-        "runtime": runtime,
-        "ratio_str": f"{ratio:.2f}%",
-        "dimension": f"{height}×{width}",
-        "before_size_kb": f"{before_size / 1024:.2f}",
-        "after_size_kb": f"{after_size / 1024:.2f}",
-        "timestamp": time.time()
-    }
-    
-    cache_data[cache_key] = cache_entry
-    save_cache(app.config["CACHE_FILE"], cache_data)
+        ratio = (before_size - after_size) / before_size * 100
 
-    return jsonify({
-        'url': url_for('preview', fname=os.path.basename(dest_path)),
-        'k': k,
-        'runtime': f"{runtime:.3f}",
-        'before_kb': f"{before_size/1024:.2f}",
-        'after_kb': f"{after_size/1024:.2f}",
-        'ratio': f"{ratio:.2f}",
-        'dimension': f"{height}×{width}"
-    })
+        # Calculate mathematical SVD compression metrics
+        total_pixels = height * width
+        uncompressed_matrix_size = total_pixels * 3  # RGB channels
+        compressed_matrix_size = (height * k + k + k * width) * 3  # U + S + Vt per channel
+        svd_compression_ratio = uncompressed_matrix_size / compressed_matrix_size
+
+        print(f"DEBUG: Math metrics - pixels:{total_pixels}, ratio:{svd_compression_ratio}")  # Debug log
+
+        return jsonify({
+            'url': url_for('preview', fname=os.path.basename(dest_path)),
+            'k': k,
+            'runtime': f"{runtime:.3f}",
+            'before_kb': f"{before_size/1024:.2f}",
+            'after_kb': f"{after_size/1024:.2f}",
+            'ratio': f"{ratio:.2f}",
+            'dimension': f"{height}×{width}",
+            # SVD mathematical metrics
+            'total_pixels': total_pixels,
+            'uncompressed_matrix_size': uncompressed_matrix_size,
+            'compressed_matrix_size': compressed_matrix_size,
+            'svd_compression_ratio': f"{svd_compression_ratio:.2f}",
+            'height': height,
+            'width': width,
+            'info_preserved': f"{(k/min(height,width))*100:.1f}"
+        })
+        
+    except Exception as e:
+        print(f"ERROR in recompress: {e}")  # Error log
+        return jsonify({'error': f'Compression failed: {str(e)}'}), 500
 
 
 @app.route('/cache/clear', methods=['POST'])
