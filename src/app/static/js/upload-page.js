@@ -5,26 +5,21 @@ const imgView = document.getElementById('img-view');
 const previewContent = document.getElementById('preview-content');
 const uploadedImage = document.getElementById('uploaded-image');
 const dropArea = document.getElementById('drop-area');
-// Set nilai awal k
 const mapping = { low: 100, medium: 50, high: 30 };
 presetSel.onchange = () => { kHidden.value = mapping[presetSel.value]; };
 kHidden.value = mapping[presetSel.value];
 inputFile.addEventListener("change", uploadImage);
 
 function uploadImage() {
-    // Cek jika ada file yang dipilih
     if (inputFile.files && inputFile.files[0]) {
         const reader = new FileReader();
         
         reader.onload = function(e) {
-            // Sembunyikan konten preview
             previewContent.style.display = 'none';
             
-            // Set source gambar dan tampilkan
             uploadedImage.src = e.target.result;
             uploadedImage.style.display = 'block';
             
-            // Deteksi orientasi gambar
             const img = new Image();
             img.onload = function() {
                 if (img.width > img.height) { // Landscape

@@ -12,11 +12,7 @@
             <header class="bg-biru-muda">
                 <div class="grid grid-cols-[1fr_2fr_1fr] items-center py-7">
                     <div class="flex justify-start pl-24">
-                        <img
-                            src="{{ url_for('static', filename='img/logo-uns.png') }}"
-                            alt="logo-uns"
-                            class="h-14 w-auto"
-                        />
+                        <img src="{{ url_for('static', filename='img/logo-uns.png') }}" alt="logo-uns" class="h-14 w-auto"/>
                     </div>
                     <div class="text-center">
                         <h1 class="flex justify-center items-center text-5xl text-biru-tua-banget font-bold">
@@ -50,7 +46,6 @@
                         </label>
                     </div>
 
-                    <!-- LEVEL DAN COMPRESS DI LUAR KOTAK -->
                     <div class="flex w-1/2 flex-shrink-0 px-6 justify-between items-center">
                         <!-- Preset selector -->
                         <div class="flex items-center gap-2 w-40 relative">
@@ -62,13 +57,11 @@
                                     <option class="text-black bg-white" value="high">High</option>
                                 </select>
 
-                                <!-- Segitiga bawaan diganti dengan custom arrow -->
                                 <div class="pointer-events-none absolute right-3 text-white top-1/2 -translate-y-1/2">
                                 ▼
                                 </div>
                             </div>
-                            </div>
-
+                        </div>
 
                         <!-- hidden k field populated by JS -->
                         <input type="hidden" name="k" id="kHidden" value="100">
@@ -93,7 +86,6 @@
             </main>
         </section>
 
-        <!-- FOOTER -->
         <section>
             <footer>
                 <div class="w-full h-1/12 bg-biru-tua text-white text-center py-4 flex justify-center items-center">
