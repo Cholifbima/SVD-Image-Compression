@@ -27,11 +27,11 @@
                 <div class="h-1 bg-biru-tua-banget mx-12"></div>
             </header>
 
-            <main class="flex-1 bg-biru-muda py-12 flex flex-col justify-center items-center">
+            <main class="flex-1 bg-biru-muda py-5 flex flex-col justify-center items-center">
                 <!-- SATU FORM UNTUK SEMUA DENGAN FLEX-1 -->
-                <form action="{{ url_for('compress') }}" method="post" enctype="multipart/form-data" class="flex flex-col items-center gap-6 w-full flex-1">
+                <form action="{{ url_for('compress') }}" method="post" enctype="multipart/form-data" class="flex flex-col items-center gap-5 w-full flex-1">
                     <!-- KOTAK UPLOAD DENGAN HEIGHT YANG BENAR -->
-                    <div id="upload-container" class="cursor-pointer bg-white border-4 border-biru rounded-4xl w-1/2 flex-1 flex flex-col gap-4 justify-center items-center relative  overflow-hidden object-contain">
+                    <div id="upload-container" class="cursor-pointer bg-white border-4 border-biru rounded-3xl w-1/2 flex-1 flex flex-col gap-4 justify-center items-center relative  overflow-hidden object-contain">
                         
                         <label for="input-file" id="drop-area" class="w-full h-full">
                             <input id="input-file" type="file" name="image" accept="image/*" hidden>
@@ -51,21 +51,36 @@
                     </div>
                     
                     <!-- LEVEL DAN COMPRESS DI LUAR KOTAK -->
-                    <div class="flex flex-shrink-0">
+                    <div class="flex w-1/2 flex-shrink-0 px-6 justify-between items-center">
                         <!-- Preset selector -->
-                        <div class="flex items-center gap-2 w-40">
+                        <div class="flex items-center gap-2 w-40 relative">
                             <label for="preset" class="text-black text-lg">Level</label>
-                            <select name="preset" id="preset" class="border rounded px-2 py-1 w-full text-center">
-                                <option value="low" selected>Low</option>
-                                <option value="medium">Medium</option>
-                                <option value="high">High</option>
-                            </select>
-                        </div>
-                        
+                            <div class="relative w-full text-lg">
+                                <select
+                                    name="preset"
+                                    id="preset"
+                                    class="appearance-none text-white bg-biru-tua px-2 pr-8 py-2 w-full text-center rounded-full"
+                                >
+                                <option class="text-black bg-white" value="low" selected>Low</option>
+                                <option class="text-black bg-white" value="medium">Medium</option>
+                                <option class="text-black bg-white" value="high">High</option>
+                                </select>
+
+                                <!-- Segitiga bawaan diganti dengan custom arrow -->
+                                <div class="pointer-events-none absolute right-3 text-white top-1/2 -translate-y-1/2">
+                                ▼
+                                </div>
+                            </div>
+                            </div>
+
+
                         <!-- hidden k field populated by JS -->
                         <input type="hidden" name="k" id="kHidden" value="100">
-                        <button type="submit" class="bg-biru-tua text-white text-lg rounded-full px-10 py-3 mt-2">Compress</button>
+                        <button type="submit" class="bg-biru-tua text-white text-lg rounded-full px-6 py-2">
+                            Compress
+                        </button>
                     </div>
+
                 </form>
 
                 <!--Dekorasi batik kawung-->
