@@ -1,99 +1,99 @@
 <!doctype html>
 <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link href="{{ url_for('static', filename='css/output.css') }}" rel="stylesheet">
-        <title>Image Compression</title>
-    </head>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="{{ url_for('static', filename='css/output.css') }}" rel="stylesheet">
+    <title>Image Compression</title>
+</head>
 
-    <body class="w-full">
-        <section class="flex flex-col h-screen">
-            <header class="bg-biru-muda">
-                <div class="grid grid-cols-[1fr_2fr_1fr] items-center py-7">
-                    <div class="flex justify-start pl-24">
-                        <img src="{{ url_for('static', filename='img/logo-uns.png') }}" alt="logo-uns" class="h-14 w-auto"/>
-                    </div>
-                    <div class="text-center">
-                        <h1 class="flex justify-center items-center text-5xl text-biru-tua-banget font-bold">
-                            Image Compression
-                        </h1>
-                    </div>
-                    <div></div>
+<body class="w-full">
+    <section class="flex flex-col h-screen">
+        <header class="bg-biru-muda">
+            <div class="grid grid-cols-[1fr_2fr_1fr] items-center py-7">
+                <div class="flex justify-start pl-24">
+                    <img src="{{ url_for('static', filename='img/logo-uns.png') }}" alt="logo-uns" class="h-14 w-auto"/>
                 </div>
-                <div class="h-1 bg-biru-tua-banget mx-12"></div>
-            </header>
+                <div class="text-center">
+                    <h1 class="flex justify-center items-center text-5xl text-biru-tua-banget font-bold">
+                        Image Compression
+                    </h1>
+                </div>
+                <div></div>
+            </div>
+            <div class="h-1 bg-biru-tua-banget mx-12"></div>
+        </header>
 
-            <main class="flex-1 bg-biru-muda py-5 flex flex-col justify-center items-center overflow-hidden">
-                <form action="{{ url_for('compress') }}" method="post" enctype="multipart/form-data" class="flex flex-col items-center gap-5 w-full flex-1">
-                    <div id="upload-container" class="cursor-pointer bg-white border-4 border-biru rounded-3xl w-1/2 flex-1 flex flex-col gap-4 justify-center items-center relative overflow-hidden">
-                        <label for="input-file" id="drop-area" class="w-full h-full">
-                            <input id="input-file" type="file" name="image" accept="image/*" hidden>
-                            <div id="img-view" class="flex flex-col justify-center items-center bg-center bg-cover h-full w-full">
-                                <div id="element" class="flex flex-col justify-center items-center bg-center bg-cover h-full w-full">
-                                    <!-- Konten awal -->
-                                    <div id="preview-content" class="flex flex-col justify-center items-center">
-                                        <img src="{{ url_for('static', filename='img/icon.png') }}" class="h-16">
-                                        <p class="text-center">Drag and drop or click here<br>to upload image</p>
-                                    </div>
-                                    
-                                    <!-- Gambar yang diupload akan muncul di sini -->
-                                    <div class="w-full overflow-hidden relative">
-                                        <img id="uploaded-image" class="hidden object-contain max-h-full mx-auto" />
-                                    </div>
+        <main class="flex-1 bg-biru-muda py-5 flex flex-col justify-center items-center overflow-hidden">
+            <form action="{{ url_for('compress') }}" method="post" enctype="multipart/form-data" class="flex flex-col items-center gap-5 w-full flex-1">
+                <div id="upload-container" class="cursor-pointer bg-white border-4 border-biru rounded-3xl w-1/2 flex-1 flex flex-col gap-4 justify-center items-center relative overflow-hidden">
+                    <label for="input-file" id="drop-area" class="w-full h-full">
+                        <input id="input-file" type="file" name="image" accept="image/*" hidden>
+                        <div id="img-view" class="flex flex-col justify-center items-center bg-center bg-cover h-full w-full">
+                            <div id="element" class="flex flex-col justify-center items-center bg-center bg-cover h-full w-full">
+                                <!-- Konten awal -->
+                                <div id="preview-content" class="flex flex-col justify-center items-center">
+                                    <img src="{{ url_for('static', filename='img/icon.png') }}" class="h-16">
+                                    <p class="text-center">Drag and drop or click here<br>to upload image</p>
                                 </div>
-                            </div>
-                        </label>
-                    </div>
-
-                    <div class="flex w-1/2 flex-shrink-0 px-6 justify-between items-center">
-                        <!-- Preset selector -->
-                        <div class="flex items-center gap-2 w-40 relative">
-                            <label for="preset" class="text-black text-lg">Level</label>
-                            <div class="relative w-full text-lg">
-                                <select name="preset" id="preset" class="appearance-none text-white bg-biru-tua px-2 pr-8 py-2 w-full text-center rounded-full">
-                                    <option class="text-black bg-white" value="low" selected>Low</option>
-                                    <option class="text-black bg-white" value="medium">Medium</option>
-                                    <option class="text-black bg-white" value="high">High</option>
-                                </select>
-
-                                <div class="pointer-events-none absolute right-3 text-white top-1/2 -translate-y-1/2">
-                                ▼
+                                
+                                <!-- Gambar yang diupload akan muncul di sini -->
+                                <div class="w-full overflow-hidden relative">
+                                    <img id="uploaded-image" class="hidden object-contain max-h-full mx-auto" />
                                 </div>
                             </div>
                         </div>
+                    </label>
+                </div>
 
-                        <!-- hidden k field populated by JS -->
-                        <input type="hidden" name="k" id="kHidden" value="100">
-                        <button type="submit" class="bg-biru-tua text-white text-lg rounded-full px-6 py-2">
-                            Compress
-                        </button>
+                <div class="flex w-1/2 flex-shrink-0 px-6 justify-between items-center">
+                    <!-- Preset selector -->
+                    <div class="flex items-center gap-2 w-40 relative">
+                        <label for="preset" class="text-black text-lg">Level</label>
+                        <div class="relative w-full text-lg">
+                            <select name="preset" id="preset" class="appearance-none text-white bg-biru-tua px-2 pr-8 py-2 w-full text-center rounded-full">
+                                <option class="text-black bg-white" value="low" selected>Low</option>
+                                <option class="text-black bg-white" value="medium">Medium</option>
+                                <option class="text-black bg-white" value="high">High</option>
+                            </select>
+
+                            <div class="pointer-events-none absolute right-3 text-white top-1/2 -translate-y-1/2">
+                            ▼
+                            </div>
+                        </div>
                     </div>
 
-                </form>
-
-                <!--Dekorasi batik kawung-->
-                <img
-                    src="{{ url_for('static', filename='img/batik-kawung-kiri.png') }}"
-                    alt="dekorasi-batik"
-                    class="absolute bottom-0 left-0 w-1/4"
-                />
-                <img
-                    src="{{ url_for('static', filename='img/batik-kawung-kanan.png') }}"
-                    alt="dekorasi-batik"
-                    class="absolute bottom-0 right-0 w-1/4"
-                />
-            </main>
-        </section>
-
-        <section>
-            <footer>
-                <div class="w-full h-1/12 bg-biru-tua text-white text-center py-4 flex justify-center items-center">
-                    &copy; 2025, Cholif Bima A - Lutfiyah Istiana - Shafa Rifkika NF
+                    <!-- hidden k field populated by JS -->
+                    <input type="hidden" name="k" id="kHidden" value="100">
+                    <button type="submit" class="bg-biru-tua text-white text-lg rounded-full px-6 py-2">
+                        Compress
+                    </button>
                 </div>
-            </footer>
-        </section>
 
-        <script src="{{ url_for('static', filename='js/upload-page.js') }}"></script>
-    </body>
+            </form>
+
+            <!--Dekorasi batik kawung-->
+            <img
+                src="{{ url_for('static', filename='img/batik-kawung-kiri.png') }}"
+                alt="dekorasi-batik"
+                class="absolute bottom-0 left-0 w-1/4"
+            />
+            <img
+                src="{{ url_for('static', filename='img/batik-kawung-kanan.png') }}"
+                alt="dekorasi-batik"
+                class="absolute bottom-0 right-0 w-1/4"
+            />
+        </main>
+    </section>
+
+    <section>
+        <footer>
+            <div class="w-full h-1/12 bg-biru-tua text-white text-center py-4 flex justify-center items-center">
+                &copy; 2025, Cholif Bima A - Lutfiyah Istiana - Shafa Rifkika NF
+            </div>
+        </footer>
+    </section>
+
+    <script src="{{ url_for('static', filename='js/upload-page.js') }}"></script>
+</body>
 </html>
