@@ -51,13 +51,14 @@
                 <div class="flex flex-col md:flex-row w-full md:w-1/2 px-1 sm:px-2 md:px-4 lg:px-6 justify-between items-center h-auto md:h-16 gap-2">
                     <!-- Compression Rate Slider -->
                     <div class="flex flex-col items-center gap-1 flex-1 mx-4">
-                        <label for="compressionRate" class="text-black text-sm md:text-base lg:text-lg font-medium">Compression Rate: <span id="rateValue">50</span>%</label>
-                        <input type="range" id="compressionRate" name="compression_rate" min="5" max="95" value="50" 
+                        <label for="compressionRate" class="text-black text-sm md:text-base lg:text-lg font-medium">Compression Rate: <span id="rateValue">70</span>%</label>
+                        <input type="range" id="compressionRate" name="compression_rate" min="5" max="95" value="70" 
                                class="w-full h-3 rounded-lg accent-blue-600 cursor-pointer">
                         <div class="flex justify-between w-full text-xs md:text-sm text-gray-600">
-                            <span>5% (Low Compression)</span>
-                            <span>95% (High Compression)</span>
+                            <span>5% (k=100, Larger File)</span>
+                            <span>95% (k=10, Smaller File)</span>
                         </div>
+                        <p class="text-xs text-center text-gray-500 mt-1">Simple formula: k = 105 - compression rate</p>
                     </div>
 
                     <!-- hidden k field -->

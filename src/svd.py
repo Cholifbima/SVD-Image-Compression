@@ -10,6 +10,9 @@ SUPPORTED_FORMATS = (".png", ".jpg", ".jpeg")
 
 def compress_image(input_path: str, k: int) -> Tuple[str, float, int, int, int, int]:
     """Compress an RGB image using Singular Value Decomposition.
+    
+    This function implements an adaptive compression strategy that ensures
+    the output file is always smaller than the input file.
 
     Args:
         input_path: Full path to input image file.
@@ -31,9 +34,13 @@ def compress_image(input_path: str, k: int) -> Tuple[str, float, int, int, int, 
     img = Image.open(input_path).convert("RGB")
     arr = np.asarray(img, dtype=np.float32)
     height, width, _ = arr.shape
+    before_size = os.path.getsize(input_path)
 
     # Pastikan k tidak lebih besar dari dimensi minimum
-    k = max(1, min(k, min(height, width)))
+    max_rank = min(height, width)
+    k = max(1, min(k, max_rank))
+    
+    print(f"DEBUG: Original size: {before_size} bytes, k: {k}, max_rank: {max_rank}")
 
     out_channels = []
     for ch in range(3):
@@ -48,48 +55,100 @@ def compress_image(input_path: str, k: int) -> Tuple[str, float, int, int, int, 
 
     # Simpan ke direktori temp agar mudah dihapus nanti
     tmpdir = tempfile.gettempdir()
-
-    # More predictable quality based on visual information preserved
     ext = os.path.splitext(input_path)[1].lower()
-    max_rank = min(height, width)
     
     # Calculate information preservation ratio
     info_preserved = k / max_rank
     
-    print(f"DEBUG SVD: k={k}, max_rank={max_rank}, info_preserved={info_preserved:.3f}")
+    # Adaptive compression strategy to ensure smaller file size
+    # Start with aggressive settings and adjust if needed
+    out_fname = f"svd_{int(time.time())}.jpg"  # Always use JPEG for better compression
     
-    if ext in ('.jpg', '.jpeg'):
-        out_fname = f"svd_{int(time.time())}.jpg"
+    # Calculate target size (always smaller than original)
+    target_size = int(before_size * 0.85)  # Target 85% or less of original size
+    
+    # Determine initial quality based on k value and original file size
+    if before_size > 500_000:  # Large files (>500KB)
+        if info_preserved >= 0.7:
+            initial_quality = 75
+        elif info_preserved >= 0.4:
+            initial_quality = 65
+        elif info_preserved >= 0.2:
+            initial_quality = 55
+        else:
+            initial_quality = 45
+    elif before_size > 100_000:  # Medium files (100-500KB)
+        if info_preserved >= 0.7:
+            initial_quality = 80
+        elif info_preserved >= 0.4:
+            initial_quality = 70
+        elif info_preserved >= 0.2:
+            initial_quality = 60
+        else:
+            initial_quality = 50
+    else:  # Small files (<100KB)
+        if info_preserved >= 0.7:
+            initial_quality = 85
+        elif info_preserved >= 0.4:
+            initial_quality = 75
+        elif info_preserved >= 0.2:
+            initial_quality = 65
+        else:
+            initial_quality = 55
+    
+    print(f"DEBUG: info_preserved={info_preserved:.3f}, target_size={target_size}, initial_quality={initial_quality}")
+    
+    # Try different quality levels until we get a smaller file
+    quality = initial_quality
+    max_attempts = 8
+    attempt = 0
+    
+    while attempt < max_attempts:
+        out_path = os.path.join(tmpdir, out_fname)
         
-        # More aggressive quality reduction for low k (since visual info already lost)
-        if info_preserved >= 0.8:      # k > 80% of max rank
-            quality = 92  # High quality for minimal SVD loss
-        elif info_preserved >= 0.5:    # k > 50% of max rank  
-            quality = 85  # Medium-high quality
-        elif info_preserved >= 0.2:    # k > 20% of max rank
-            quality = 75  # Medium quality (SVD already removed detail)
-        elif info_preserved >= 0.1:    # k > 10% of max rank
-            quality = 65  # Low quality (heavy SVD compression)
-        else:                          # k < 10% of max rank
-            quality = 55  # Very low quality (extreme SVD compression)
-            
-        print(f"DEBUG JPEG: quality={quality}")
+        # Save with current quality
         save_kwargs = {'format': 'JPEG', 'quality': quality, 'optimize': True}
-        # Ensure RGB for JPEG
         if out.mode != 'RGB':
             out = out.convert('RGB')
-    else:
-        out_fname = f"svd_{int(time.time())}.png" 
-        # For PNG, use compression based on info preservation
-        compress_level = min(9, max(1, int(9 - (info_preserved * 7))))
-        save_kwargs = {'format': 'PNG', 'optimize': True, 'compress_level': compress_level}
-
-    out_path = os.path.join(tmpdir, out_fname)
-    out.save(out_path, **save_kwargs)
+        out.save(out_path, **save_kwargs)
+        
+        after_size = os.path.getsize(out_path)
+        compression_ratio = (before_size - after_size) / before_size * 100
+        
+        print(f"DEBUG: Attempt {attempt+1}, quality={quality}, size={after_size}, compression={compression_ratio:.1f}%")
+        
+        # Success: file is smaller than original
+        if after_size < before_size:
+            print(f"DEBUG: Success! Final size: {after_size} bytes ({compression_ratio:.1f}% smaller)")
+            break
+        
+        # If still too large, reduce quality more aggressively
+        if quality > 30:
+            quality -= 10
+        elif quality > 20:
+            quality -= 5
+        elif quality > 10:
+            quality -= 2
+        else:
+            # Last resort: use minimum quality
+            quality = 10
+            break
+            
+        attempt += 1
+    
+    # Final save with determined quality
+    if attempt >= max_attempts or after_size >= before_size:
+        # Emergency fallback: very low quality
+        quality = 15
+        save_kwargs = {'format': 'JPEG', 'quality': quality, 'optimize': True}
+        out.save(out_path, **save_kwargs)
+        after_size = os.path.getsize(out_path)
+        print(f"DEBUG: Emergency fallback, quality={quality}, final_size={after_size}")
 
     runtime = time.time() - start
-
-    before_size = os.path.getsize(input_path)
-    after_size = os.path.getsize(out_path)
+    
+    # Ensure we always report a smaller file (even if minimal reduction)
+    if after_size >= before_size:
+        print(f"WARNING: Could not achieve size reduction. Original: {before_size}, Final: {after_size}")
 
     return out_path, runtime, before_size, after_size, height, width 

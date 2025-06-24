@@ -5,32 +5,125 @@ on:
     branches:
       - main
       - Backend
+      - fix-ukuran-besar  # Add current branch
+  workflow_dispatch:  # Allow manual deployment
+
+env:
+  AZURE_WEBAPP_NAME: svdimagecompression-ebcvbqhzbsgfhzdz
+  AZURE_WEBAPP_PACKAGE_PATH: '.'
+  PYTHON_VERSION: '3.11'
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - name: 🏗️ Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: 🐍 Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies
+      - name: 🔧 Create virtual environment
         run: |
+          python -m venv venv
+          source venv/bin/activate
           python -m pip install --upgrade pip
+
+      - name: 📦 Install dependencies
+        run: |
+          source venv/bin/activate
           pip install -r requirements.txt
 
-      - name: Zip application
+      - name: 🧪 Test application structure
         run: |
-          zip -r release.zip . -x "*.git*" -x "node_modules/*"
+          source venv/bin/activate
+          cd src/app
+          python -c "
+          import sys
+          sys.path.append('..')
+          try:
+              from svd import compress_image
+              from utils import allowed_file
+              print('✅ All imports working!')
+          except Exception as e:
+              print(f'❌ Import error: {e}')
+              exit(1)
+          "
 
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v2
+      - name: 📝 Create startup script for Azure
+        run: |
+          cat > startup.sh << 'EOF'
+          #!/bin/bash
+          echo "🚀 Starting SVD Image Compression App"
+          cd /home/site/wwwroot/src/app
+          export PYTHONPATH="/home/site/wwwroot/src:$PYTHONPATH"
+          gunicorn --bind 0.0.0.0:8000 --timeout 600 --workers 1 app:app
+          EOF
+          chmod +x startup.sh
+
+      - name: 📝 Create web.config for Azure
+        run: |
+          cat > web.config << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <system.webServer>
+              <handlers>
+                <add name="PythonHandler" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified"/>
+              </handlers>
+              <httpPlatform processPath="/home/site/wwwroot/startup.sh"
+                            arguments=""
+                            stdoutLogEnabled="true"
+                            stdoutLogFile="/home/LogFiles/python.log"
+                            startupTimeLimit="60"
+                            requestTimeout="00:10:00">
+              </httpPlatform>
+            </system.webServer>
+          </configuration>
+          EOF
+
+      - name: 📝 Create requirements.txt if missing dependencies
+        run: |
+          # Add gunicorn for Azure deployment
+          if ! grep -q "gunicorn" requirements.txt; then
+            echo "gunicorn>=20.1.0" >> requirements.txt
+          fi
+
+      - name: 🗜️ Create deployment package
+        run: |
+          # Create clean deployment package
+          mkdir -p deployment
+          
+          # Copy application files
+          cp -r src/ deployment/
+          cp requirements.txt deployment/
+          cp startup.sh deployment/
+          cp web.config deployment/
+          cp README.md deployment/ 2>/dev/null || true
+          
+          # Create the zip file
+          cd deployment
+          zip -r ../svd-app-deployment.zip . -x "*.git*" -x "*/__pycache__/*" -x "*/node_modules/*" -x "*/venv/*"
+          cd ..
+          
+          echo "📦 Deployment package created: svd-app-deployment.zip"
+          ls -la svd-app-deployment.zip
+
+      - name: 🚀 Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: release.zip 
+          package: svd-app-deployment.zip
+
+      - name: 🔄 Restart Azure Web App
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.53.0
+          inlineScript: |
+            az webapp restart --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }}
+        env:
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }} 
