@@ -16,7 +16,6 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
       - name: 🏗️ Checkout Repository
@@ -59,9 +58,31 @@ jobs:
           cat > startup.sh << 'EOF'
           #!/bin/bash
           echo "🚀 Starting SVD Image Compression App"
+          echo "Current directory: $(pwd)"
+          echo "Python path: $PYTHONPATH"
+          
+          # Change to app directory first
           cd /home/site/wwwroot/src/app
+          echo "Changed to directory: $(pwd)"
+          
+          # Set Python path to include our source
           export PYTHONPATH="/home/site/wwwroot/src:$PYTHONPATH"
-          gunicorn --bind 0.0.0.0:8000 --timeout 600 --workers 1 app:app
+          echo "Python path set to: $PYTHONPATH"
+          
+          # Create necessary directories
+          mkdir -p /tmp/svd_uploads /tmp/svd_cache
+          echo "Created upload directories"
+          
+          # Set Flask environment
+          export FLASK_APP=app.py
+          export FLASK_ENV=production
+          
+          # Test imports before starting
+          python -c "import sys; sys.path.append('..'); from svd import compress_image; from utils import allowed_file; print('✅ Imports successful')" || exit 1
+          
+          # Start with verbose logging
+          echo "Starting gunicorn..."
+          exec gunicorn --bind 0.0.0.0:8000 --timeout 600 --workers 1 --access-logfile - --error-logfile - --log-level info app:app
           EOF
           chmod +x startup.sh
 
@@ -78,16 +99,21 @@ jobs:
                             arguments=""
                             stdoutLogEnabled="true"
                             stdoutLogFile="/home/LogFiles/python.log"
-                            startupTimeLimit="60"
+                            startupTimeLimit="120"
                             requestTimeout="00:10:00">
+                <environmentVariables>
+                  <environmentVariable name="PYTHONPATH" value="/home/site/wwwroot/src" />
+                  <environmentVariable name="FLASK_APP" value="app.py" />
+                  <environmentVariable name="FLASK_ENV" value="production" />
+                </environmentVariables>
               </httpPlatform>
             </system.webServer>
           </configuration>
           EOF
 
-      - name: 📝 Create requirements.txt if missing dependencies
+      - name: 📝 Ensure requirements.txt has all dependencies
         run: |
-          # Add gunicorn for Azure deployment
+          # Ensure all required packages are in requirements.txt
           if ! grep -q "gunicorn" requirements.txt; then
             echo "gunicorn>=20.1.0" >> requirements.txt
           fi
@@ -119,11 +145,10 @@ jobs:
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: svd-app-deployment.zip
 
-      - name: 🔄 Restart Azure Web App
-        uses: azure/CLI@v1
-        with:
-          azcliversion: 2.53.0
-          inlineScript: |
-            az webapp restart --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }}
-        env:
-          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }} 
+      - name: ✅ Deployment Complete
+        run: |
+          echo "🎉 Deployment completed successfully!"
+          echo "🌐 Your app should be available at: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
+          echo "🌐 Debug endpoint: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/debug"
+          echo "🌐 Health check: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health"
+          echo "📋 If the app shows default Azure page, wait 2-3 minutes for the container to fully start" 
