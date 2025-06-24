@@ -38,56 +38,73 @@ jobs:
         print('✅ All imports working')
         "
 
-    - name: Create deployment package
-      run: |
-        # Create a clean zip package
-        zip -r deploy.zip . -x "*.git*" "*/__pycache__/*" "*/node_modules/*" "*/venv/*" "*.pyc"
-        ls -la deploy.zip
-
-    - name: Deploy using publish profile
+    - name: Deploy using FTP from publish profile
       env:
         PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
       run: |
-        # Save publish profile and parse it properly
+        # Install lftp for FTP deployment
+        sudo apt-get update && sudo apt-get install -y lftp
+        
+        # Parse publish profile for FTP credentials
         echo "$PUBLISH_PROFILE" > publishProfile.xml
-        cat publishProfile.xml
         
-        # Extract Kudu credentials from the publish profile
-        KUDU_USERNAME=$(grep -o 'userName="[^"]*"' publishProfile.xml | grep '\$' | head -1 | sed 's/userName="//;s/"//')
-        KUDU_PASSWORD=$(grep -o 'userPWD="[^"]*"' publishProfile.xml | head -1 | sed 's/userPWD="//;s/"//')
+        # Extract FTP details (look for the first FTP publish method)
+        FTP_HOST=$(grep -o 'publishUrl="ftp://[^"]*"' publishProfile.xml | head -1 | sed 's/publishUrl="ftp:\/\///;s/"//')
+        FTP_USER=$(grep -o 'userName="[^"]*"' publishProfile.xml | head -1 | sed 's/userName="//;s/"//')
+        FTP_PASS=$(grep -o 'userPWD="[^"]*"' publishProfile.xml | head -1 | sed 's/userPWD="//;s/"//')
         
-        echo "Username: $KUDU_USERNAME"
-        echo "Password length: ${#KUDU_PASSWORD}"
+        echo "FTP Host: $FTP_HOST"
+        echo "FTP User: $FTP_USER"
+        echo "Password length: ${#FTP_PASS}"
         
-        # Use the app name directly since we know it
-        KUDU_URL="https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy"
+        # Create deployment script
+        cat > deploy_ftp.sh << 'EOF'
+        #!/bin/bash
+        set -e
         
-        echo "Deploying to: $KUDU_URL"
+        # Clean up target directory and upload files
+        lftp -c "
+        set ssl:verify-certificate no;
+        set ftp:ssl-allow no;
+        open -u $FTP_USER,$FTP_PASS $FTP_HOST;
+        cd /site/wwwroot;
+        mirror --reverse --delete --verbose . .;
+        quit;
+        "
+        EOF
         
-        # Deploy using Kudu API
-        curl -X POST \
-          -u "$KUDU_USERNAME:$KUDU_PASSWORD" \
-          -H "Content-Type: application/zip" \
-          --data-binary @deploy.zip \
-          --max-time 600 \
-          --retry 3 \
-          "$KUDU_URL" \
-          -v
+        chmod +x deploy_ftp.sh
         
-        echo "Deployment request sent!"
+        # Execute FTP deployment
+        FTP_HOST=$FTP_HOST FTP_USER=$FTP_USER FTP_PASS=$FTP_PASS ./deploy_ftp.sh
+        
+        echo "✅ FTP deployment completed!"
 
-    - name: Wait for deployment
+    - name: Wait and verify deployment
       run: |
-        echo "Waiting for deployment to complete..."
-        sleep 30
+        echo "Waiting for app to start..."
+        sleep 45
         
-        # Check if deployment was successful
-        curl -s "https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health" || echo "App starting up..."
+        # Test the deployment
+        for i in {1..5}; do
+          echo "Attempt $i: Testing app..."
+          if curl -s --max-time 30 "https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health"; then
+            echo "✅ App is responding!"
+            break
+          else
+            echo "⏳ App not ready yet, waiting..."
+            sleep 30
+          fi
+        done
 
     - name: Deployment info
       run: |
-        echo "✅ Deployment completed!"
+        echo "🎉 Deployment process completed!"
         echo "🌐 App URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
         echo "🔍 Debug URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/debug"
         echo "💚 Health URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health"
-        echo "⏰ Wait 2-3 minutes if app shows default page" 
+        echo ""
+        echo "⚠️  If app shows default Azure page:"
+        echo "1. Wait 3-5 minutes for full startup"
+        echo "2. Check the /debug endpoint for diagnostic info"
+        echo "3. Azure logs at: https://portal.azure.com" 
