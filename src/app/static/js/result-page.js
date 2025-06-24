@@ -1,26 +1,24 @@
 const debounceDelay=400;
 let timer=null;
-const slider=document.getElementById('kSlider');
-const kLabel=document.getElementById('kVal');
+const slider = document.getElementById('kSlider');
+const kLabel = document.getElementById('kVal');
 const img=document.getElementById('compressedImg');
 const statsDiv=document.getElementById('stats');
 const dlBtn=document.getElementById('downloadBtn');
-// Get the original filename from a hidden input or data attribute
-// We'll need to pass this from the template
-const origName = document.querySelector('[data-before-fname]')?.dataset.beforeFname || 
-                 window.beforeFname ||
-                 img.src.split('/preview/')[1].split('?')[0];
+const origName = document.querySelector('[data-before-fname]')?.dataset.beforeFname || window.beforeFname || img.src.split('/preview/')[1].split('?')[0];
 
-slider.oninput=()=>{
-    kLabel.textContent=slider.value;
-    if(timer) clearTimeout(timer);
-    timer=setTimeout(doRecompress, debounceDelay);
+if (slider) {
+    slider.oninput = () => {
+        kLabel.textContent = slider.value;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(doRecompress, debounceDelay);
+    };
 };
 
 function doRecompress(){
     const fd=new FormData();
     fd.append('fname', origName);
-    fd.append('k', slider.value);
+    fd.append('k', '{{ k }}');
     fetch('/recompress', {method:'POST', body:fd})
         .then(r=>r.json()).then(d=>{
         if(d.error){console.error(d.error);return;}

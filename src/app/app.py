@@ -1,16 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
 from werkzeug.utils import secure_filename
 import os
-import sys
 import tempfile
 import shutil
 import time
 import logging
 from PIL import Image
-
-# Add parent directory to path to import svd and utils
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from svd import compress_image
 from utils import allowed_file, get_file_hash, load_cache, save_cache, cleanup_old_files
 from health import health_bp
@@ -73,8 +68,7 @@ def compress():
     k = int(request.form.get('k', 100))
 
     file_hash = get_file_hash(in_path)
-    # Add version identifier to cache key to force new compression with adaptive algorithm
-    algorithm_version = "v2_adaptive"  # Change this when algorithm changes
+    algorithm_version = "v2_adaptive"
     cache_key = f"{file_hash}_{k}_{algorithm_version}"
     
     cache_data = load_cache(app.config["CACHE_FILE"])
@@ -171,7 +165,7 @@ def recompress():
     fname = request.form.get('fname')  # original uploaded filename
     k_val = request.form.get('k')
     
-    print(f"DEBUG: Recompress called with fname={fname}, k={k_val}")  # Debug log
+    print(f"DEBUG: Recompress called with fname={fname}, k={k_val}")
     
     if not fname or not k_val:
         return jsonify({'error': 'Parameter missing'}), 400

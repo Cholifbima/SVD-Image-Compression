@@ -130,7 +130,6 @@ def compress_image(input_path: str, k: int) -> Tuple[str, float, int, int, int, 
         elif quality > 10:
             quality -= 2
         else:
-            # Last resort: use minimum quality
             quality = 10
             break
             

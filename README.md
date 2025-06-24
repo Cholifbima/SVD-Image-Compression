@@ -17,6 +17,46 @@
 Salah satu algoritma yang dapat digunakan untuk kompresi Image adalah algoritma SVD (Singular Value Decomposition). Algoritma SVD didasarkan pada teorema dalam aljabar linier yang menyatakan bahwa sebuah matriks dua dimensi dapat dipecah menjadi hasil perkalian dari 3 sub-matriks yaitu matriks ortogonal U, matriks diagonal S, dan transpose dari matriks ortogonal V. 
 
 
+## Struktur Repositori
+```
+SVD-Image-Compression/
+├── doc/
+│   └── upload-page.png
+├── README.md
+├── src/
+│   ├── app/
+│   │   ├── app.py
+│   │   ├── health.py
+│   │   ├── svd.py
+│   │   ├── utils.py
+│   │   ├── venv/
+│   │   │   ├── Scripts/
+│   │   │   │   ├── activate.bat
+│   │   │   │   ├── Activate.ps1
+│   │   │   │   └── python.exe
+│   │   │   └── pyvenv.cfg
+│   │   ├── static/
+│   │   │   ├── css/
+│   │   │   │   └── output.css
+│   │   │   ├── img/
+│   │   │   │   ├── icon.png
+│   │   │   │   ├── logo-uns.png
+│   │   │   │   ├── batik-kawung-kanan.png
+│   │   │   │   └── batik-kawung-kiri.png
+│   │   │   └── js/
+│   │   │       ├── upload-page.js
+│   │   │       └── result-page.js
+│   │   └── templates/
+│   │       ├── upload-page.html
+│   │       └── result.html
+│   ├── tailwind/
+│   │   └── input.css
+│   ├── package.json
+│   ├── package-lock.json
+│   └── requirements.txt
+```
+
+
 ## Dependensi yang Digunakan
 - python==3.13.0
 - Flask>=2.2
