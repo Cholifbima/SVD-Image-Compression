@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html>
 <head>
@@ -45,36 +46,20 @@
                 </div>
 
                 <div class="flex w-1/2 flex-shrink-0 px-6 justify-between items-center h-16">
-                    <!-- Preset selector -->
-                    <div class="flex items-center gap-2 w-40 relative">
-                        <label for="preset" class="text-black text-lg">Level</label>
-                        <div class="relative w-full text-lg">
-                            <select name="preset" id="preset" class="appearance-none text-white bg-biru-tua px-2 pr-8 py-2 w-full text-center rounded-full">
-                                <option class="text-black bg-white" value="low" selected>Low</option>
-                                <option class="text-black bg-white" value="medium">Medium</option>
-                                <option class="text-black bg-white" value="high">High</option>
-                            </select>
-
-                            <div class="pointer-events-none absolute right-3 text-white top-1/2 -translate-y-1/2">
-                            ▼
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Compression Rate Slider -->
+                    <!-- Compression Rate Slider - Diperlebar karena preset dihapus -->
                     <div class="flex flex-col items-center gap-1 flex-1 mx-4">
-                        <label for="compressionRate" class="text-black text-sm">Compression Rate: <span id="rateValue">50</span>%</label>
+                        <label for="compressionRate" class="text-black text-lg font-medium">Compression Rate: <span id="rateValue">50</span>%</label>
                         <input type="range" id="compressionRate" name="compression_rate" min="5" max="95" value="50" 
-                               class="w-full h-2 rounded-lg accent-blue-600 cursor-pointer">
-                        <div class="flex justify-between w-full text-xs text-gray-600">
-                            <span>5%</span>
-                            <span>95%</span>
+                               class="w-full h-3 rounded-lg accent-blue-600 cursor-pointer">
+                        <div class="flex justify-between w-full text-sm text-gray-600">
+                            <span>5% (Low Compression)</span>
+                            <span>95% (High Compression)</span>
                         </div>
                     </div>
 
                     <!-- hidden k field populated by JS -->
                     <input type="hidden" name="k" id="kHidden" value="100">
-                    <button type="submit" class="bg-biru-tua text-white text-lg rounded-full px-6 py-2">
+                    <button type="submit" class="bg-biru-tua text-white text-lg rounded-full px-8 py-3 ml-6 hover:bg-opacity-90 transition-colors">
                         Compress
                     </button>
                 </div>
