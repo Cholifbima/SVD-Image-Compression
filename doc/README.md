@@ -1,7 +1,7 @@
 # *Image Compression* dengan SVD
 
 
-![Upload Page](./doc/upload-page.png)
+![Upload Page](./upload-page.png)
 
 
 ## Daftar Isi
