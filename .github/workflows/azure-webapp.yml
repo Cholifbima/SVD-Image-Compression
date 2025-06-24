@@ -38,14 +38,38 @@ jobs:
         print('✅ All imports working')
         "
 
-    - name: Deploy to Azure Web App
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: '.'
+    - name: Create deployment package
+      run: |
+        # Create a clean zip package
+        zip -r deploy.zip . -x "*.git*" "*/__pycache__/*" "*/node_modules/*" "*/venv/*" "*.pyc"
+        ls -la deploy.zip
+
+    - name: Deploy using publish profile
+      env:
+        PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+      run: |
+        # Extract deployment credentials from publish profile
+        echo "$PUBLISH_PROFILE" > publishProfile.xml
+        
+        # Extract the FTP/Kudu details from publish profile
+        SITE_NAME=$(grep -oP 'siteName="\K[^"]*' publishProfile.xml | head -1)
+        USERNAME=$(grep -oP 'userName="\K[^"]*' publishProfile.xml | head -1)
+        PASSWORD=$(grep -oP 'userPWD="\K[^"]*' publishProfile.xml | head -1)
+        PUBLISH_URL=$(grep -oP 'publishUrl="\K[^"]*' publishProfile.xml | head -1)
+        
+        echo "Deploying to: $SITE_NAME"
+        echo "Using URL: $PUBLISH_URL"
+        
+        # Use Kudu API to deploy
+        curl -X POST \
+          -u "$USERNAME:$PASSWORD" \
+          -H "Content-Type: application/zip" \
+          --data-binary @deploy.zip \
+          "https://$SITE_NAME.scm.azurewebsites.net/api/zipdeploy" \
+          -v
 
     - name: Deployment info
       run: |
         echo "Deployment completed!"
-        echo "App URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net" 
+        echo "App URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
+        echo "If app shows default page, wait 2-3 minutes for restart" 
