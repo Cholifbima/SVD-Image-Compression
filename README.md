@@ -86,11 +86,11 @@ Catatan: dapat juga menggunakan versi dependensi yang lain selama tidak ada konf
 
 
 ## Penggunaan
-1. Masuk ke direktori src dan jalankan program `app.py`
+1. Masuk ke direktori `src/app/` dan jalankan program `app.py`
 
     `python3 app.py`
 
-2. Jalankan 
+2. Masuk ke direktori `src/` dan jalankan 
 
     `npm run dev`
 

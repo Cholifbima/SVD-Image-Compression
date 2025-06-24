@@ -1,154 +1,51 @@
-name: Build and Deploy to Azure Web App
+name: Deploy to Azure Web App
 
 on:
   push:
-    branches:
-      - main
-      - Backend
-      - fix-ukuran-besar  # Add current branch
-  workflow_dispatch:  # Allow manual deployment
+    branches: [ main ]
+  workflow_dispatch:
 
 env:
   AZURE_WEBAPP_NAME: svdimagecompression-ebcvbqhzbsgfhzdz
-  AZURE_WEBAPP_PACKAGE_PATH: '.'
   PYTHON_VERSION: '3.11'
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: 🏗️ Checkout Repository
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: 🔧 Create virtual environment
-        run: |
-          python -m venv venv
-          source venv/bin/activate
-          python -m pip install --upgrade pip
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
 
-      - name: 📦 Install dependencies
-        run: |
-          source venv/bin/activate
-          pip install -r requirements.txt
+    - name: Test imports
+      run: |
+        cd src/app
+        python -c "
+        import sys
+        sys.path.append('..')
+        from svd import compress_image
+        from utils import allowed_file
+        print('✅ All imports working')
+        "
 
-      - name: 🧪 Test application structure
-        run: |
-          source venv/bin/activate
-          cd src/app
-          python -c "
-          import sys
-          sys.path.append('..')
-          try:
-              from svd import compress_image
-              from utils import allowed_file
-              print('✅ All imports working!')
-          except Exception as e:
-              print(f'❌ Import error: {e}')
-              exit(1)
-          "
+    - name: Deploy to Azure Web App
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: '.'
 
-      - name: 📝 Create startup script for Azure
-        run: |
-          cat > startup.sh << 'EOF'
-          #!/bin/bash
-          echo "🚀 Starting SVD Image Compression App"
-          echo "Current directory: $(pwd)"
-          echo "Python path: $PYTHONPATH"
-          
-          # Change to app directory first
-          cd /home/site/wwwroot/src/app
-          echo "Changed to directory: $(pwd)"
-          
-          # Set Python path to include our source
-          export PYTHONPATH="/home/site/wwwroot/src:$PYTHONPATH"
-          echo "Python path set to: $PYTHONPATH"
-          
-          # Create necessary directories
-          mkdir -p /tmp/svd_uploads /tmp/svd_cache
-          echo "Created upload directories"
-          
-          # Set Flask environment
-          export FLASK_APP=app.py
-          export FLASK_ENV=production
-          
-          # Test imports before starting
-          python -c "import sys; sys.path.append('..'); from svd import compress_image; from utils import allowed_file; print('✅ Imports successful')" || exit 1
-          
-          # Start with verbose logging
-          echo "Starting gunicorn..."
-          exec gunicorn --bind 0.0.0.0:8000 --timeout 600 --workers 1 --access-logfile - --error-logfile - --log-level info app:app
-          EOF
-          chmod +x startup.sh
-
-      - name: 📝 Create web.config for Azure
-        run: |
-          cat > web.config << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <configuration>
-            <system.webServer>
-              <handlers>
-                <add name="PythonHandler" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified"/>
-              </handlers>
-              <httpPlatform processPath="/home/site/wwwroot/startup.sh"
-                            arguments=""
-                            stdoutLogEnabled="true"
-                            stdoutLogFile="/home/LogFiles/python.log"
-                            startupTimeLimit="120"
-                            requestTimeout="00:10:00">
-                <environmentVariables>
-                  <environmentVariable name="PYTHONPATH" value="/home/site/wwwroot/src" />
-                  <environmentVariable name="FLASK_APP" value="app.py" />
-                  <environmentVariable name="FLASK_ENV" value="production" />
-                </environmentVariables>
-              </httpPlatform>
-            </system.webServer>
-          </configuration>
-          EOF
-
-      - name: 📝 Ensure requirements.txt has all dependencies
-        run: |
-          # Ensure all required packages are in requirements.txt
-          if ! grep -q "gunicorn" requirements.txt; then
-            echo "gunicorn>=20.1.0" >> requirements.txt
-          fi
-
-      - name: 🗜️ Create deployment package
-        run: |
-          # Create clean deployment package
-          mkdir -p deployment
-          
-          # Copy application files
-          cp -r src/ deployment/
-          cp requirements.txt deployment/
-          cp startup.sh deployment/
-          cp web.config deployment/
-          cp README.md deployment/ 2>/dev/null || true
-          
-          # Create the zip file
-          cd deployment
-          zip -r ../svd-app-deployment.zip . -x "*.git*" -x "*/__pycache__/*" -x "*/node_modules/*" -x "*/venv/*"
-          cd ..
-          
-          echo "📦 Deployment package created: svd-app-deployment.zip"
-          ls -la svd-app-deployment.zip
-
-      - name: 🚀 Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: svd-app-deployment.zip
-
-      - name: ✅ Deployment Complete
-        run: |
-          echo "🎉 Deployment completed successfully!"
-          echo "🌐 Your app should be available at: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
-          echo "🌐 Debug endpoint: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/debug"
-          echo "🌐 Health check: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health"
-          echo "📋 If the app shows default Azure page, wait 2-3 minutes for the container to fully start" 
+    - name: Deployment info
+      run: |
+        echo "Deployment completed!"
+        echo "App URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net" 
