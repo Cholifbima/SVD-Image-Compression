@@ -37,7 +37,7 @@
                             <!-- Konten awal -->
                             <div id="preview-content" class="flex flex-col justify-center items-center h-full w-full">
                                 <img src="{{ url_for('static', filename='img/icon.png') }}" class="h-16 mb-4">
-                                <p class="text-center text-sm md:text-base">Drag and drop or click here<br>to upload image</p>
+                                <p class="text-center text-sm md:text-base">Drag and drop or click here<br>to upload image<br>(.jpeg, .jpg, or .png)</p>
                             </div>
                             
                             <!-- Gambar yang diupload -->
@@ -58,7 +58,6 @@
                             <span>5% (k=100, Larger File)</span>
                             <span>95% (k=10, Smaller File)</span>
                         </div>
-                        <p class="text-xs text-center text-gray-500 mt-1">Simple formula: k = 105 - compression rate</p>
                     </div>
 
                     <!-- hidden k field -->
