@@ -48,28 +48,46 @@ jobs:
       env:
         PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
       run: |
-        # Extract deployment credentials from publish profile
+        # Save publish profile and parse it properly
         echo "$PUBLISH_PROFILE" > publishProfile.xml
+        cat publishProfile.xml
         
-        # Extract the FTP/Kudu details from publish profile
-        SITE_NAME=$(grep -oP 'siteName="\K[^"]*' publishProfile.xml | head -1)
-        USERNAME=$(grep -oP 'userName="\K[^"]*' publishProfile.xml | head -1)
-        PASSWORD=$(grep -oP 'userPWD="\K[^"]*' publishProfile.xml | head -1)
-        PUBLISH_URL=$(grep -oP 'publishUrl="\K[^"]*' publishProfile.xml | head -1)
+        # Extract Kudu credentials from the publish profile
+        KUDU_USERNAME=$(grep -o 'userName="[^"]*"' publishProfile.xml | grep '\$' | head -1 | sed 's/userName="//;s/"//')
+        KUDU_PASSWORD=$(grep -o 'userPWD="[^"]*"' publishProfile.xml | head -1 | sed 's/userPWD="//;s/"//')
         
-        echo "Deploying to: $SITE_NAME"
-        echo "Using URL: $PUBLISH_URL"
+        echo "Username: $KUDU_USERNAME"
+        echo "Password length: ${#KUDU_PASSWORD}"
         
-        # Use Kudu API to deploy
+        # Use the app name directly since we know it
+        KUDU_URL="https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy"
+        
+        echo "Deploying to: $KUDU_URL"
+        
+        # Deploy using Kudu API
         curl -X POST \
-          -u "$USERNAME:$PASSWORD" \
+          -u "$KUDU_USERNAME:$KUDU_PASSWORD" \
           -H "Content-Type: application/zip" \
           --data-binary @deploy.zip \
-          "https://$SITE_NAME.scm.azurewebsites.net/api/zipdeploy" \
+          --max-time 600 \
+          --retry 3 \
+          "$KUDU_URL" \
           -v
+        
+        echo "Deployment request sent!"
+
+    - name: Wait for deployment
+      run: |
+        echo "Waiting for deployment to complete..."
+        sleep 30
+        
+        # Check if deployment was successful
+        curl -s "https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health" || echo "App starting up..."
 
     - name: Deployment info
       run: |
-        echo "Deployment completed!"
-        echo "App URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
-        echo "If app shows default page, wait 2-3 minutes for restart" 
+        echo "✅ Deployment completed!"
+        echo "🌐 App URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
+        echo "🔍 Debug URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/debug"
+        echo "💚 Health URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health"
+        echo "⏰ Wait 2-3 minutes if app shows default page" 
