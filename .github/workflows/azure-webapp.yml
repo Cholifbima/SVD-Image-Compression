@@ -1,110 +1,135 @@
-name: Deploy to Azure Web App
+name: Build and Deploy to Azure Web App
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - Backend
+      - fix-ukuran-besar
   workflow_dispatch:
 
 env:
   AZURE_WEBAPP_NAME: svdimagecompression-ebcvbqhzbsgfhzdz
+  AZURE_WEBAPP_PACKAGE_PATH: '.'
   PYTHON_VERSION: '3.11'
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    
+    environment: production
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: 🏗️ Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
+      - name: 🐍 Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: 🔧 Create virtual environment
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          python -m pip install --upgrade pip
 
-    - name: Test imports
-      run: |
-        cd src/app
-        python -c "
-        import sys
-        sys.path.append('..')
-        from svd import compress_image
-        from utils import allowed_file
-        print('✅ All imports working')
-        "
+      - name: 📦 Install dependencies
+        run: |
+          source venv/bin/activate
+          pip install -r requirements.txt
 
-    - name: Deploy using FTP from publish profile
-      env:
-        PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-      run: |
-        # Install lftp for FTP deployment
-        sudo apt-get update && sudo apt-get install -y lftp
-        
-        # Parse publish profile for FTP credentials
-        echo "$PUBLISH_PROFILE" > publishProfile.xml
-        
-        # Extract FTP details (look for the first FTP publish method)
-        FTP_HOST=$(grep -o 'publishUrl="ftp://[^"]*"' publishProfile.xml | head -1 | sed 's/publishUrl="ftp:\/\///;s/"//')
-        FTP_USER=$(grep -o 'userName="[^"]*"' publishProfile.xml | head -1 | sed 's/userName="//;s/"//')
-        FTP_PASS=$(grep -o 'userPWD="[^"]*"' publishProfile.xml | head -1 | sed 's/userPWD="//;s/"//')
-        
-        echo "FTP Host: $FTP_HOST"
-        echo "FTP User: $FTP_USER"
-        echo "Password length: ${#FTP_PASS}"
-        
-        # Create deployment script
-        cat > deploy_ftp.sh << 'EOF'
-        #!/bin/bash
-        set -e
-        
-        # Clean up target directory and upload files
-        lftp -c "
-        set ssl:verify-certificate no;
-        set ftp:ssl-allow no;
-        open -u $FTP_USER,$FTP_PASS $FTP_HOST;
-        cd /site/wwwroot;
-        mirror --reverse --delete --verbose . .;
-        quit;
-        "
-        EOF
-        
-        chmod +x deploy_ftp.sh
-        
-        # Execute FTP deployment
-        FTP_HOST=$FTP_HOST FTP_USER=$FTP_USER FTP_PASS=$FTP_PASS ./deploy_ftp.sh
-        
-        echo "✅ FTP deployment completed!"
+      - name: 🧪 Test application structure
+        run: |
+          source venv/bin/activate
+          cd src/app
+          python -c "
+          import sys
+          sys.path.append('..')
+          try:
+              from svd import compress_image
+              from utils import allowed_file
+              print('✅ All imports working!')
+          except Exception as e:
+              print(f'❌ Import error: {e}')
+              exit(1)
+          "
 
-    - name: Wait and verify deployment
-      run: |
-        echo "Waiting for app to start..."
-        sleep 45
-        
-        # Test the deployment
-        for i in {1..5}; do
-          echo "Attempt $i: Testing app..."
-          if curl -s --max-time 30 "https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health"; then
-            echo "✅ App is responding!"
-            break
-          else
-            echo "⏳ App not ready yet, waiting..."
-            sleep 30
+      - name: 📝 Create startup script for Azure
+        run: |
+          cat > startup.sh << 'EOF'
+          #!/bin/bash
+          echo "🚀 Starting SVD Image Compression App"
+          cd /home/site/wwwroot/src/app
+          export PYTHONPATH="/home/site/wwwroot/src:$PYTHONPATH"
+          mkdir -p /tmp/svd_uploads /tmp/svd_cache
+          export FLASK_APP=app.py
+          python -c "import sys; sys.path.append('..'); from svd import compress_image; print('✅ Imports OK')" || exit 1
+          gunicorn --bind 0.0.0.0:8000 --timeout 600 --workers 1 app:app
+          EOF
+          chmod +x startup.sh
+
+      - name: 📝 Create web.config for Azure
+        run: |
+          cat > web.config << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <system.webServer>
+              <handlers>
+                <add name="PythonHandler" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified"/>
+              </handlers>
+              <httpPlatform processPath="/home/site/wwwroot/startup.sh"
+                            arguments=""
+                            stdoutLogEnabled="true"
+                            stdoutLogFile="/home/LogFiles/python.log"
+                            startupTimeLimit="120"
+                            requestTimeout="00:10:00">
+                <environmentVariables>
+                  <environmentVariable name="PYTHONPATH" value="/home/site/wwwroot/src" />
+                  <environmentVariable name="FLASK_APP" value="app.py" />
+                </environmentVariables>
+              </httpPlatform>
+            </system.webServer>
+          </configuration>
+          EOF
+
+      - name: 📝 Ensure requirements.txt has all dependencies
+        run: |
+          # Add gunicorn for Azure deployment
+          if ! grep -q "gunicorn" requirements.txt; then
+            echo "gunicorn>=20.1.0" >> requirements.txt
           fi
-        done
 
-    - name: Deployment info
-      run: |
-        echo "🎉 Deployment process completed!"
-        echo "🌐 App URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
-        echo "🔍 Debug URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/debug"
-        echo "💚 Health URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health"
-        echo ""
-        echo "⚠️  If app shows default Azure page:"
-        echo "1. Wait 3-5 minutes for full startup"
-        echo "2. Check the /debug endpoint for diagnostic info"
-        echo "3. Azure logs at: https://portal.azure.com" 
+      - name: 🗜️ Create deployment package
+        run: |
+          # Create clean deployment package
+          mkdir -p deployment
+          
+          # Copy application files
+          cp -r src/ deployment/
+          cp requirements.txt deployment/
+          cp startup.sh deployment/
+          cp web.config deployment/
+          cp README.md deployment/ 2>/dev/null || true
+          
+          # Create the zip file
+          cd deployment
+          zip -r ../svd-app-deployment.zip . -x "*.git*" -x "*/__pycache__/*" -x "*/node_modules/*" -x "*/venv/*"
+          cd ..
+          
+          echo "📦 Deployment package created: svd-app-deployment.zip"
+          ls -la svd-app-deployment.zip
+
+      - name: 🚀 Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: svd-app-deployment.zip
+
+      - name: ✅ Deployment Complete
+        run: |
+          echo "🎉 Deployment completed successfully!"
+          echo "🌐 Your app should be available at: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
+          echo "🔍 Debug endpoint: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/debug"
+          echo "💚 Health check: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health"
+          echo "⏰ Wait 2-3 minutes for app to fully start if showing default page" 
